@@ -1,0 +1,102 @@
+#include <iostream>
+#include <openssl/md5.h>
+#include <cstring>
+#include <array>
+#include <string>
+#include <vector>
+#include <ctime>
+using namespace std;
+
+vector<string> results;  // Store permutations here
+
+// Helper function for backtracking with fixed length
+void backtrack(const vector<char>& chars, string& current, int maxLength) {
+    // Base case: if the current permutation reaches maxLength, store it
+    if (current.size() == maxLength) {
+        results.push_back(current);
+        return;
+    }
+
+    // Recur with each character in the character set
+    for (char c : chars) {
+        current.push_back(c);  // Add character to the current permutation
+        backtrack(chars, current, maxLength);  // Recurse
+        current.pop_back();  // Remove character to backtrack
+    }
+}
+
+// Function to start generating permutations with a fixed length
+void generatePermutations(const vector<char>& chars, int length, char c) {
+    string current(1, c);  // Holds the current permutation
+    backtrack(chars, current, length);
+}
+
+// Modified brute force to check against an array of target digests
+void bruteforce(unsigned char targetDigests[][MD5_DIGEST_LENGTH], int numTargets) {
+    for (const string& perm : results) {
+        unsigned char digest[MD5_DIGEST_LENGTH];
+        MD5((const unsigned char*)perm.data(), perm.length(), digest);
+
+        for (int i = 0; i < numTargets; ++i) {
+            if (memcmp(targetDigests[i], digest, MD5_DIGEST_LENGTH) == 0) {
+                std::cout << "hash matched password " << perm  << " with ";
+                for (int j = 0; j < MD5_DIGEST_LENGTH; ++j) {
+                    printf("%02x", targetDigests[i][j]);
+                }
+                std::cout << std::endl;
+            }
+        }
+    }
+    return;  // No matches found
+}
+
+int main() {
+    const int numTargets = 10;  // Number of target passwords
+    const char* targetPasswords[] = {"YVPSW", "NUTRT", "PWUJX", "LGSAG", "XLRYL", "HGGDU", "VDLCT", "BHKNU", "CFJHM", "VUBEM"};
+    unsigned char targetDigests[numTargets][MD5_DIGEST_LENGTH];  // Array to store MD5 digests for each target password
+
+    // Compute MD5 hash for each target password
+    for (int i = 0; i < numTargets; ++i) {
+        MD5((const unsigned char*)targetPasswords[i], strlen(targetPasswords[i]), targetDigests[i]);
+    }
+
+    // Output MD5 digests for verification (in hexadecimal format)
+    for (int i = 0; i < numTargets; ++i) {
+        std::cout << "MD5 digest for \"" << targetPasswords[i] << "\": ";
+        for (int j = 0; j < MD5_DIGEST_LENGTH; ++j) {
+            printf("%02x", targetDigests[i][j]);
+        }
+        std::cout << std::endl;
+    }
+
+    // Initialize chars vector with 'A'-'Z'
+    vector<char> chars;
+    for (char c = 'A'; c <= 'Z'; ++c) {
+        chars.push_back(c);
+    }
+
+    double elapsed_time;
+
+    // Set the length for permutations
+    int length = 5;
+    clock_t start_time;
+    clock_t end_time;
+    for (char c : chars) {
+       
+        // Generate permutations of the specified length
+        generatePermutations(chars, length, c);
+
+        start_time = clock();    
+        // Apply brute force to check permutations against all target digests
+        bruteforce(targetDigests, numTargets);
+        end_time = clock();
+        
+        elapsed_time = elapsed_time+(double)(end_time - start_time) / CLOCKS_PER_SEC;
+        // Clear permutations for the next iteration
+        results.clear();
+    }
+
+    printf("The program took %.6f seconds to execute.\n", elapsed_time);
+
+    return 0;
+}
